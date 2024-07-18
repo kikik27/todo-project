@@ -13,20 +13,16 @@ message_success = "Success"
 error_user_not_found = {"error": "User data not found"}
 
 class User(APIView):
+  serializer_class = UserGETSerializer
   def get(self, request, id=None):
-    
     f_name = request.GET.get('name')
     f_email = request.GET.get('email')
     f_keyword = request.GET.get('keyword')
     
-    query = Users.objects.filter()
+    query = Users.objects.all()
     
     if id:
-      query = query.filter(id=id).first()
-      if not query:
-        return Response.notFound(message=message_failed)
-      user = UserGETSerializer(query)
-      return Response.ok(data=user.data, message=message_success)
+      return self._get_detail_user(serializer=self.serializer_class, id=id)
     
     if f_name:
       query = query.filter(name=f_name)
@@ -37,11 +33,10 @@ class User(APIView):
     if f_keyword:
       query = query.filter(Q(name=f_keyword)|Q(email=f_keyword))
     
-    if not query:
+    if not query.exists():
         return Response.notFound(message=message_failed)
       
-    serializer = UserGETSerializer(data=query, many=True)
-    print(serializer)
+    serializer = UserGETSerializer(query, many=True)
     return Response.ok(data=serializer.data, message=message_success)
       
   def post(self,request):
@@ -81,3 +76,32 @@ class User(APIView):
                     data={"error": f"An unexpected error occurred: {str(e)}"},
                     message=message_failed
                 )
+            
+  def _get_detail_user(self, serializer, id):
+    try:
+      query = Users.objects.filter(id=id).first()
+      
+      if not query:
+        return Response.notFound(message=message_failed)
+      
+    except ObjectDoesNotExist:
+            print("Object does not exist")
+            return Response.badRequest(
+                    data=error_user_not_found,
+                    message=message_failed
+                )
+    except DatabaseError as e:
+            print({str(e)})
+            return Response.badRequest(
+                    data={"error": f"Database error: {str(e)}"},
+                    message=message_failed
+                )
+    except Exception as e:
+            print({str(e)})
+            return Response.serverError(
+                    data={"error": f"An unexpected error occurred: {str(e)}"},
+                    message=message_failed
+                )
+            
+    data = serializer(query).data
+    return Response.ok(data=data, message=message_success)
