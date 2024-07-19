@@ -19,3 +19,14 @@ class ValidationLoginSerializer(serializers.Serializer):
   #   if not user: 
   #     raise serializers.ValidationError("Passwords do not match")
   #   return user;
+  
+class AuthSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(read_only=True)
+    email = serializers.CharField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+    role_id = serializers.IntegerField(read_only=True)
+    role_name = serializers.CharField(read_only=True)
+    
+    class Meta:
+      model = Users
+      fields = ['id', 'name', 'email', 'is_active', 'role_id', 'role_name']

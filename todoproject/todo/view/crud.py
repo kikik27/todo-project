@@ -2,38 +2,43 @@ from rest_framework.views import APIView
 from helpers.response import Response
 from django.db import DatabaseError
 from django.core.exceptions import ObjectDoesNotExist
-from user.models import Users
+from todo.models import Todos
 import json
 from helpers.pagination import Paginator
-from django.db.models import (CharField, Exists, OuterRef, Q, Subquery,
-                              UUIDField, Value)
-from user.serializers import (UserPOSTSerializer, UserGETSerializer, UserUpdateSerializer)
+from django.db.models import (CharField, Exists, OuterRef, Q, Subquery, UUIDField, Value)
+from todo.serializers import (TodoPOSTSerializer, TodoGETSerializer, TodoUpdateSerializer)
 
 message_failed = "Failed"
 message_success = "Success"
-error_user_not_found = {"error": "User data not found"}
+error_user_not_found = {"error": "Todo data not found"}
 
-class User(APIView):
-  serializer_get_class = UserGETSerializer
-  serializer_post_class = UserPOSTSerializer
+class Todo(APIView):
+  serializer_get_class = TodoGETSerializer
+  serializer_post_class = TodoPOSTSerializer
   pagination_class = Paginator
   
   def get(self, request):
+    user_id = request.token['id']
+    role_name = request.token['role_name']
+
     f_name = request.GET.get('name')
-    f_email = request.GET.get('email')
     f_keyword = request.GET.get('keyword')
     f_detail = request.GET.get('detail')
     
-    query = Users.objects.all()
+    if role_name == 'user':
+      query = Todos.objects.filter(user_id=user_id)
+      
+    if role_name == 'admin':
+      query = Todos.objects.all()
+      
+    if role_name is None:
+      return Response.unauthorized(data={"error": "Role is not available"})
     
     if f_detail:
-      return self._get_detail_user(serializer=self.serializer_get_class, id=f_detail)
+      return self._get_detail_todo(serializer=self.serializer_get_class, id=f_detail)
     
     if f_name:
       query = query.filter(name=f_name)
-      
-    if f_email:
-      query = query.filter(email=f_email)
       
     if f_keyword:
       query = query.filter(Q(name__icontains=f_keyword)|Q(email__icontains=f_keyword))
@@ -46,8 +51,9 @@ class User(APIView):
       
   def post(self,request):
     try:
-      json_data = json.loads(request.body)
-      serializer = UserPOSTSerializer(data=json_data)
+      payload_data = request.data
+      payload_data['user_id'] = request.token['id']
+      serializer = TodoPOSTSerializer(data=payload_data)
             
       if not serializer.is_valid():
         print(serializer.errors)
@@ -86,9 +92,9 @@ class User(APIView):
     user_key = request.GET.get('id', None)
     
     try:
-      instance = Users.objects.get(id=user_key)
+      instance = Todos.objects.get(id=user_key)
       
-      serializer = UserUpdateSerializer(instance=instance,data=request.data)
+      serializer = TodoUpdateSerializer(instance=instance,data=request.data)
       
       if not serializer.is_valid():
         print(serializer.errors)
@@ -99,8 +105,8 @@ class User(APIView):
       
       serializer.update(instance=instance, validated_data=serializer.validated_data)
       
-    except Users.DoesNotExist:
-      print("Users does not exist")
+    except Todos.DoesNotExist:
+      print("Todo does not exist")
       data = {"error": f"{self.serializer_get_class.Meta.model.__name__} data with ID {user_key} does not exist."}
       return Response.notFound(message=message_failed, data=data)
     
@@ -111,21 +117,21 @@ class User(APIView):
     user_key = request.GET.get('id', None)
     
     try:
-      instance = Users.objects.get(id=user_key)
+      instance = Todos.objects.get(id=user_key)
       instance.delete()
       
-    except Users.DoesNotExist:
-      print("Users does not exist")
+    except Todos.DoesNotExist:
+      print("Todo does not exist")
       data = {"error": f"{self.serializer_get_class.Meta.model.__name__} data with ID {user_key} does not exist."}
       return Response.notFound(message=message_failed, data=data)
     
-    message = f"{Users.__name__} deleted successfully"
+    message = f"{Todos.__name__} deleted successfully"
     return Response.ok(message=message)
   
             
-  def _get_detail_user(self, serializer, id):
+  def _get_detail_todo(self, serializer, id):
     try:
-      query = Users.objects.get(id=id)
+      query = Todos.objects.get(id=id)
       
       if not query:
         data = {"error": f"{self.serializer_get_class.Meta.model.__name__} data with ID {id} does not exist."}

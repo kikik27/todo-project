@@ -19,7 +19,6 @@ def generate_token(payload_user):
         **payload_user
     }
     return jwt.encode(payload, private_key, algorithm='RS256')
-  
 
 class JWTMiddleware:
   
@@ -27,7 +26,7 @@ class JWTMiddleware:
     self.get_response = get_response
     self.exempt_urls = {reverse('login'), reverse('register')}
     self.public_key = self._get_public_key()
-    
+
   def _get_public_key(self):
     with open('public_key.pem') as public_key:
       return public_key.read()
@@ -59,12 +58,9 @@ class JWTMiddleware:
     
     try:
       decode_payload = self._validate_token(token)
-      
-      user = Users.objects.filter(id=decode_payload['user_id']).first()
-      
+      user = Users.objects.filter(id=decode_payload['id'], is_active=1).first()
       if not user:
-        return Response.unauthorized(data=None, message='Unauthorized')
-      
+          return Response.unauthorized()
       request.token = decode_payload
     
     except Exception as e:

@@ -21,8 +21,16 @@ class Response:
         return Response().base(data=data, message=message, status=400)
     def notFound(data=None, message=""):
         return Response().base(data=data, message=message, status=404)
-    def unauthorized(data=None, message=""):
-        return Response().base(data=data, message=message, status=401)
+    def unauthorized(data=None, message=None):
+        return Response().base(data=data, message= message if message is not None else "Unauthorized", status=401)
     @staticmethod 
     def serverError(data=None, message=""):
         return Response().base(data=data, message=message, status=500)
+    
+    def get_pagination_response(data, serializer, request, pagination_class):
+        paginator = pagination_class()
+        paginated_data = paginator.paginate_queryset(data, request)
+
+        response_data = serializer(paginated_data, many=True).data
+
+        return paginator.get_paginated_response(response_data, f"{serializer.Meta.model.__name__} data retrieved")
