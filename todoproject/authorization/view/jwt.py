@@ -61,7 +61,9 @@ class JWTMiddleware:
       user = Users.objects.filter(id=decode_payload['id'], is_active=1).first()
       if not user:
           return Response.unauthorized()
+      
       request.token = decode_payload
+      request.user = user
     
     except Exception as e:
       return Response.serverError(
